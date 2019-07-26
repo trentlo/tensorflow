@@ -80,7 +80,11 @@ Status FindNodesToDecluster(const Graph& graph,
       }
 
       bool edge_incurs_extra_device_to_host_copy;
-      if (output_mtypes[e->src_output()] == DEVICE_MEMORY) {
+      if (DT_INT32 == dst->input_type(e->dst_input())) {
+        // Unfortunately as long as the output is DT_INT32, a D2H memory copy
+        // is incurred because of the merge node inserted by the XLA bridge.
+        edge_incurs_extra_device_to_host_copy = true;
+      } else if (output_mtypes[e->src_output()] == DEVICE_MEMORY) {
         // If the output of the *TensorFlow* operation is in DEVICE_MEMORY then
         // keep the node clustered -- XLA will also produce the output in device
         // memory and we will get some benefit from clustering.

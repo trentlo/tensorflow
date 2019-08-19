@@ -40,6 +40,8 @@ class ClusterScopingPassImpl {
  private:
   Status ScopingForPipelineStages();
 
+  Status ScopingForHorovod();
+
   size_t GetUniqueScopeId() { return unique_scope_id_++; }
 
   void AddScopeToAllTransitivePredecessors(Node* start);
@@ -146,12 +148,28 @@ Status ClusterScopingPassImpl::ScopingForPipelineStages() {
   return Status::OK();
 }
 
+Status ClusterScopingPassImpl::ScopingForHorovod() {
+  for (Node* n : graph_->nodes()) {
+    DCHECK(n);
+    if (n->type_string() == "HorovodAllreduce" ||
+        n->type_string() == "HorovodAllgather") {
+      AddScopeToAllTransitivePredecessors(n);
+    }
+  }
+
+  return Status::OK();
+}
+
 Status ClusterScopingPassImpl::Run() {
   if (global_jit_level_ == OptimizerOptions::OFF) {
     return Status::OK();
   }
 
-  return ScopingForPipelineStages();
+  TF_RETURN_IF_ERROR(ScopingForPipelineStages());
+
+  TF_RETURN_IF_ERROR(ScopingForHorovod());
+
+  return Status::OK();
 }
 }  // namespace
 
